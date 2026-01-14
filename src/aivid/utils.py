@@ -19,14 +19,18 @@ def format_size(size: int) -> str:
 def get_file_info(file_path: str) -> dict[str, Any]:
     """Get basic file information."""
     stat = os.stat(file_path)
+
+    # st_birthtime is only available on macOS/BSD
+    created: str | None = None
+    if hasattr(stat, "st_birthtime"):
+        created = datetime.fromtimestamp(getattr(stat, "st_birthtime")).isoformat()
+
     return {
         "filename": os.path.basename(file_path),
         "path": os.path.abspath(file_path),
         "size_bytes": stat.st_size,
         "size_human": format_size(stat.st_size),
-        "created": datetime.fromtimestamp(stat.st_birthtime).isoformat()
-        if hasattr(stat, "st_birthtime")
-        else None,
+        "created": created,
         "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
         "accessed": datetime.fromtimestamp(stat.st_atime).isoformat(),
         "extension": Path(file_path).suffix.lower(),
