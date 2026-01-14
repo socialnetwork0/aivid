@@ -22,7 +22,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --all-extras
 
       - name: Run ruff check
         run: uv run ruff check .
@@ -64,7 +64,7 @@ jobs:
           brew install ffmpeg mediainfo exiftool
 
       - name: Install Python dependencies
-        run: uv sync --dev
+        run: uv sync --all-extras
 
       - name: Run tests
         run: uv run pytest -v --cov=src/aivid --cov-report=xml
