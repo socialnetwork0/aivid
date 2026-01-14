@@ -11,12 +11,18 @@ Usage:
 """
 
 import argparse
-import json
 import sys
 
-from aivid import __version__
-from aivid.formatters import format_c2pa_report, format_report, report_to_dict
-from aivid.metadata import analyze_file, check_c2patool_available, sign_with_c2pa
+from aivid._version import __version__
+from aivid.analyze import analyze_file
+from aivid.extractors import check_c2patool_available, sign_with_c2pa
+from aivid.formatters import (
+    format_c2pa,
+    format_default,
+    format_full,
+    format_json_list,
+    format_quiet,
+)
 
 
 def main() -> int:
@@ -93,32 +99,27 @@ Examples:
         print(message)
         return 0 if success else 1
 
-    all_reports = []
+    all_metadata = []
     errors = 0
 
     for file_path in args.files:
         try:
             print(f"Analyzing: {file_path}")
-            report = analyze_file(file_path)
-            all_reports.append(report)
+            metadata = analyze_file(file_path, full=args.full)
+            all_metadata.append(metadata)
 
             if args.quiet:
                 # Quick summary
-                c2pa = "C2PA" if report.c2pa_info.get("has_c2pa") else ""
-                gen = report.c2pa_info.get("generator", "")
-                sw = ", ".join(report.custom_tags.get("detected_software", []))
-                print(f"  Format: {report.container_info.get('format', 'Unknown')}")
-                print(f"  Duration: {report.container_info.get('duration', 'N/A')}s")
-                if c2pa:
-                    print(f"  AI Content: {c2pa} - {gen}")
-                if sw:
-                    print(f"  Software: {sw}")
+                print(format_quiet(metadata))
             elif args.c2pa:
                 # C2PA mode
-                print(format_c2pa_report(report))
+                print(format_c2pa(metadata))
+            elif args.full:
+                # Full mode
+                print(format_full(metadata))
             else:
-                # Default or full mode
-                print(format_report(report, full=args.full))
+                # Default mode
+                print(format_default(metadata))
 
             print()
 
@@ -130,10 +131,10 @@ Examples:
             errors += 1
 
     # JSON export
-    if args.output and all_reports:
-        output_data = [report_to_dict(r) for r in all_reports]
+    if args.output and all_metadata:
+        json_output = format_json_list(all_metadata)
         with open(args.output, "w", encoding="utf-8") as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False, default=str)
+            f.write(json_output)
         print(f"Report saved to: {args.output}")
 
     return 1 if errors > 0 else 0

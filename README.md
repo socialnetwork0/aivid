@@ -10,20 +10,29 @@
 ## Features
 
 - **AI Detection**: Detect AI-generated videos through C2PA metadata and heuristic analysis
+- **C2PA Signing**: Add C2PA manifests to media files (requires c2patool)
 - **Metadata Extraction**: Extract comprehensive metadata from video files
-- **Multi-tool Support**: Leverages ffprobe, mediainfo, and exiftool for thorough analysis
+- **Multi-tool Support**: Leverages ffprobe, mediainfo, exiftool, and c2patool for thorough analysis
+- **MP4 Box Analysis**: Binary parsing of MP4/MOV container structure
+- **Software Detection**: Identify editing software (FFmpeg, Adobe, DaVinci, OBS, etc.)
 - **Multiple Output Modes**: Default summary, full details, C2PA focus, or quiet mode
 - **JSON Export**: Export reports for automation and integration
+- **Batch Processing**: Analyze multiple files with single command
 
 ## Supported AI Generators
 
 | Generator | Detection Method | Confidence |
 |-----------|------------------|------------|
 | OpenAI Sora | C2PA manifest + 96kHz audio signature | High |
-| Google Gemini/Veo | Encoder tag | High |
-| Luma AI | Handler name | Medium |
-| Pika Labs | C2PA manifest | Medium |
+| OpenAI DALL-E | C2PA manifest | High |
+| Google Gemini/Veo | Encoder tag + C2PA manifest | High |
 | Adobe Firefly | C2PA manifest | High |
+| Midjourney | C2PA manifest | High |
+| Stability AI | C2PA manifest | High |
+| Runway | C2PA manifest | Medium |
+| Pika Labs | C2PA manifest | Medium |
+| Kling AI | C2PA manifest | Medium |
+| Luma AI | Handler name + C2PA manifest | Medium |
 
 ## Requirements
 
@@ -109,7 +118,7 @@ aivid --sign manifest.json -o signed_video.mp4 video.mp4
 ### Python API
 
 ```python
-from aivid import analyze_file
+from aivid import analyze_file, check_c2patool_available, sign_with_c2pa, MetadataReport
 
 # Analyze a video file
 report = analyze_file("video.mp4")
@@ -126,6 +135,14 @@ print(f"Resolution: {report.encoding_info['video']['width']}x{report.encoding_in
 if report.c2pa_info:
     print(f"C2PA Manifest: {report.c2pa_info.get('manifest_id')}")
     print(f"Signing Authority: {report.c2pa_info.get('signing_authorities')}")
+
+# Sign a file with C2PA manifest (requires c2patool)
+if check_c2patool_available():
+    sign_with_c2pa(
+        input_path="video.mp4",
+        output_path="signed_video.mp4",
+        manifest_path="manifest.json"
+    )
 ```
 
 ## Output Modes
@@ -214,6 +231,27 @@ uv pip install -e ".[dev]"
 pre-commit install
 ```
 
+### Local CLI usage for testing (方法 2，本地 CLI 测试)
+
+> 方便本地从源码仓库里直接跑 `aivid` 命令做测试（你现在用的就是这种方式）
+
+```bash
+cd /Users/yuanlu/Code/ai-video-tools
+
+# 1. 创建并激活虚拟环境（只需创建一次，之后每次只需激活）
+uv venv
+source .venv/bin/activate  # macOS / Linux
+
+# 2. 以开发模式安装当前仓库（代码改动会立刻反映到 CLI）
+uv pip install -e ".[dev]"
+
+# 3. 在这个虚拟环境里使用 aivid 命令进行测试
+aivid --help
+
+# 示例：对 data 目录下的视频做一次基础分析
+aivid data/sora_video/19700121_0310_69650d0aeaec8191bdb986a1b9b2a84f.mp4
+```
+
 ### Running Tests
 
 ```bash
@@ -233,6 +271,12 @@ uv run ruff format .
 uv run mypy src
 ```
 
+## Supported File Formats
+
+**Native MP4/MOV parsing:** `.mp4`, `.m4v`, `.m4a`, `.mov`, `.3gp`, `.3g2`
+
+**Other formats:** Any format supported by ffprobe
+
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
@@ -244,6 +288,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 ## Acknowledgments
 
 - [C2PA](https://c2pa.org/) - Coalition for Content Provenance and Authenticity
+- [c2patool](https://github.com/contentauth/c2pa-rs) - C2PA command line tool
 - [FFmpeg](https://ffmpeg.org/) - Multimedia framework
 - [MediaInfo](https://mediaarea.net/en/MediaInfo) - Media file analysis
 - [ExifTool](https://exiftool.org/) - Metadata extraction

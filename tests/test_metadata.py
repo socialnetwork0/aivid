@@ -3,52 +3,72 @@
 import pytest
 
 from aivid import __version__, analyze_file
-from aivid.models import MetadataReport
-from aivid.utils import format_size, get_file_info
+from aivid.models import FileInfo, VideoMetadata
+from aivid.utils import format_size
 
 
 def test_version():
     """Test that version is defined."""
-    assert __version__ == "0.1.0"
+    assert __version__ == "0.2.0"
 
 
 def test_format_size():
     """Test human-readable size formatting."""
-    assert format_size(0) == "0.00 B"
-    assert format_size(1023) == "1023.00 B"
+    assert format_size(0) == "0 B"
+    assert format_size(1023) == "1023 B"
     assert format_size(1024) == "1.00 KB"
     assert format_size(1024 * 1024) == "1.00 MB"
     assert format_size(1024 * 1024 * 1024) == "1.00 GB"
 
 
-def test_metadata_report_defaults():
-    """Test MetadataReport default values."""
-    report = MetadataReport()
-    assert report.file_path == ""
-    assert report.file_info == {}
-    assert report.c2pa_info == {}
-    assert report.is_ai_generated is False
-    assert report.ai_generator is None
+def test_video_metadata_defaults():
+    """Test VideoMetadata default values."""
+    file_info = FileInfo(
+        path="/test/video.mp4",
+        filename="video.mp4",
+        extension=".mp4",
+        size_bytes=1000,
+    )
+    metadata = VideoMetadata(file_info=file_info)
+
+    assert metadata.path == "/test/video.mp4"
+    assert metadata.filename == "video.mp4"
+    assert metadata.is_ai_generated is False
+    assert metadata.ai_generator is None
+    assert metadata.has_c2pa is False
 
 
-def test_metadata_report_ai_detection():
-    """Test MetadataReport AI detection properties."""
-    report = MetadataReport(c2pa_info={"has_c2pa": True, "generator": "OpenAI Sora"})
-    assert report.is_ai_generated is True
-    assert report.ai_generator == "OpenAI Sora"
+def test_video_metadata_ai_detection():
+    """Test VideoMetadata AI detection properties."""
+    file_info = FileInfo(
+        path="/test/video.mp4",
+        filename="video.mp4",
+        extension=".mp4",
+        size_bytes=1000,
+    )
+    metadata = VideoMetadata(file_info=file_info)
+    metadata.ai_detection.is_ai_generated = True
+    metadata.ai_detection.generator = "OpenAI Sora"
+
+    assert metadata.is_ai_generated is True
+    assert metadata.ai_generator == "OpenAI Sora"
 
 
-def test_get_file_info(tmp_path):
-    """Test get_file_info with a temporary file."""
-    test_file = tmp_path / "test.txt"
-    test_file.write_text("hello world")
+def test_video_metadata_c2pa():
+    """Test VideoMetadata C2PA detection."""
+    file_info = FileInfo(
+        path="/test/video.mp4",
+        filename="video.mp4",
+        extension=".mp4",
+        size_bytes=1000,
+    )
+    metadata = VideoMetadata(file_info=file_info)
+    metadata.provenance.c2pa.has_c2pa = True
+    metadata.provenance.c2pa.issuer = "OpenAI"
+    metadata.provenance.c2pa.digital_source_type = "trainedAlgorithmicMedia"
 
-    info = get_file_info(str(test_file))
-
-    assert info["filename"] == "test.txt"
-    assert info["size_bytes"] == 11
-    assert info["size_human"] == "11.00 B"
-    assert info["extension"] == ".txt"
+    assert metadata.has_c2pa is True
+    assert metadata.provenance.c2pa.is_ai_generated is True
 
 
 def test_analyze_file_not_found():
@@ -67,8 +87,8 @@ def test_analyze_file_basic(tmp_path, has_ffprobe):
     test_file = tmp_path / "test.mp4"
     test_file.write_bytes(b"\x00" * 100)
 
-    report = analyze_file(str(test_file))
+    metadata = analyze_file(str(test_file))
 
-    assert isinstance(report, MetadataReport)
-    assert report.file_info["filename"] == "test.mp4"
-    assert report.file_info["extension"] == ".mp4"
+    assert isinstance(metadata, VideoMetadata)
+    assert metadata.filename == "test.mp4"
+    assert metadata.file_info.extension == ".mp4"

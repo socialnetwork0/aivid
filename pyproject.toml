@@ -20,6 +20,14 @@ keywords = [
     "metadata",
     "sora",
     "gemini",
+    "veo",
+    "dalle",
+    "midjourney",
+    "runway",
+    "pika",
+    "kling",
+    "luma",
+    "firefly",
     "deepfake",
     "synthetic-media",
     "ai-generated",
@@ -40,9 +48,32 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+    "pydantic>=2.0",
+]
 
 [project.optional-dependencies]
+# C2PA support (recommended)
+c2pa = [
+    "c2pa-python>=0.6.0",
+]
+# ExifTool integration (requires exiftool binary)
+exif = [
+    "pyexiftool>=0.5.0",
+]
+# MediaInfo integration (requires libmediainfo)
+mediainfo = [
+    "pymediainfo>=6.0",
+]
+# Recommended install (c2pa support)
+default = [
+    "aivid[c2pa]",
+]
+# Full install (all features)
+full = [
+    "aivid[c2pa,exif,mediainfo]",
+]
+# Development dependencies
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
@@ -50,6 +81,7 @@ dev = [
     "mypy>=1.0",
     "pre-commit>=3.0",
 ]
+# Documentation
 docs = [
     "mkdocs>=1.5",
     "mkdocs-material>=9.0",
@@ -103,6 +135,10 @@ warn_unused_configs = true
 module = "tests.*"
 disallow_untyped_defs = false
 
+[[tool.mypy.overrides]]
+module = ["c2pa", "c2pa.*", "exiftool", "exiftool.*", "pymediainfo", "pymediainfo.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
@@ -111,6 +147,7 @@ markers = [
     "requires_ffprobe: requires ffprobe to be installed",
     "requires_mediainfo: requires mediainfo to be installed",
     "requires_exiftool: requires exiftool to be installed",
+    "requires_c2patool: requires c2patool to be installed",
 ]
 
 [tool.coverage.run]
