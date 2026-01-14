@@ -34,6 +34,7 @@ aivid requires these command-line tools to be installed:
 - **ffprobe** (required) - Part of FFmpeg
 - **mediainfo** (optional, recommended)
 - **exiftool** (optional, recommended)
+- **c2patool** (optional) - For accurate C2PA manifest parsing and signing
 
 #### macOS
 
@@ -55,6 +56,18 @@ choco install ffmpeg mediainfo exiftool
 
 # Or using Scoop
 scoop install ffmpeg mediainfo exiftool
+```
+
+#### Install c2patool (optional)
+
+c2patool provides more accurate C2PA manifest parsing and signing capabilities.
+
+```bash
+# Using Cargo (Rust package manager)
+cargo install c2patool
+
+# Or download prebuilt binaries from:
+# https://github.com/contentauth/c2pa-rs/releases
 ```
 
 ### Python Installation
@@ -88,6 +101,9 @@ aivid -q *.mp4
 
 # Export to JSON
 aivid -o report.json video.mp4
+
+# Sign a file with C2PA manifest (requires c2patool)
+aivid --sign manifest.json -o signed_video.mp4 video.mp4
 ```
 
 ### Python API
@@ -135,6 +151,8 @@ Output includes:
 - AI generation indicators (audio sample rate, encoder tags, etc.)
 - Detection summary with confidence levels
 
+Note: When c2patool is installed, aivid uses it for more accurate C2PA parsing.
+
 ### Full Mode (`--full`)
 
 Complete metadata dump including mediainfo, exiftool, all streams, and raw data.
@@ -149,6 +167,34 @@ One-line summary per file, ideal for batch processing.
 
 ```bash
 aivid -q *.mp4
+```
+
+### Sign Mode (`--sign`)
+
+Add a C2PA manifest to a media file (requires c2patool).
+
+```bash
+# Create a manifest file
+cat > manifest.json << 'EOF'
+{
+  "claim_generator": "aivid",
+  "title": "My Video",
+  "assertions": [
+    {
+      "label": "c2pa.actions",
+      "data": {
+        "actions": [{"action": "c2pa.edited"}]
+      }
+    }
+  ]
+}
+EOF
+
+# Sign the video
+aivid --sign manifest.json -o signed_video.mp4 video.mp4
+
+# Verify the signature
+aivid --c2pa signed_video.mp4
 ```
 
 ## Development

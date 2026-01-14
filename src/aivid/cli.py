@@ -7,6 +7,7 @@ Usage:
   aivid --c2pa video.mp4             # C2PA/AI detection focus
   aivid -o report.json *.mp4         # JSON export
   aivid -q *.mp4                     # Quick summary
+  aivid --sign manifest.json -o out.mp4 video.mp4  # Sign with C2PA
 """
 
 import argparse
@@ -15,7 +16,7 @@ import sys
 
 from aivid import __version__
 from aivid.formatters import format_c2pa_report, format_report, report_to_dict
-from aivid.metadata import analyze_file
+from aivid.metadata import analyze_file, check_c2patool_available, sign_with_c2pa
 
 
 def main() -> int:
@@ -31,12 +32,16 @@ Modes:
   --c2pa       C2PA focus: AI content detection with indicators and confidence
   -q/--quiet   Quick summary only
 
+Signing (requires c2patool):
+  --sign       Sign file with C2PA manifest (requires -o for output)
+
 Examples:
   aivid video.mp4                    # Default mode
   aivid --full video.mp4             # Full details
   aivid --c2pa video.mp4             # C2PA/AI detection
   aivid -o report.json *.mp4         # JSON export
   aivid -q *.mp4                     # Quick summary
+  aivid --sign manifest.json -o signed.mp4 video.mp4  # Sign with C2PA
         """,
     )
     parser.add_argument("files", nargs="+", help="Media file(s) to analyze")
@@ -56,8 +61,37 @@ Examples:
         help="C2PA mode: focus on AI content detection",
     )
     mode_group.add_argument("-q", "--quiet", action="store_true", help="Quick summary only")
+    mode_group.add_argument(
+        "--sign",
+        metavar="MANIFEST",
+        help="Sign file with C2PA manifest JSON (requires c2patool and -o)",
+    )
 
     args = parser.parse_args()
+
+    # Handle signing mode
+    if args.sign:
+        if not args.output:
+            print("Error: --sign requires -o/--output for signed file path", file=sys.stderr)
+            return 1
+        if len(args.files) != 1:
+            print("Error: --sign requires exactly one input file", file=sys.stderr)
+            return 1
+
+        if not check_c2patool_available():
+            print(
+                "Error: c2patool not found. Install with: cargo install c2patool", file=sys.stderr
+            )
+            print(
+                "       Or download from: https://github.com/contentauth/c2pa-rs/releases",
+                file=sys.stderr,
+            )
+            return 1
+
+        input_file = args.files[0]
+        success, message = sign_with_c2pa(input_file, args.sign, args.output)
+        print(message)
+        return 0 if success else 1
 
     all_reports = []
     errors = 0

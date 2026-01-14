@@ -180,6 +180,185 @@ def get_exiftool_metadata(file_path: str) -> dict[str, Any]:
         return {"error": str(e)}
 
 
+def check_c2patool_available() -> bool:
+    """Check if c2patool is installed."""
+    try:
+        result = subprocess.run(
+            ["c2patool", "-V"],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def get_c2patool_metadata(file_path: str) -> dict[str, Any]:
+    """Get C2PA metadata using c2patool (optional dependency).
+
+    c2patool provides more accurate C2PA parsing than string-based extraction.
+    Falls back gracefully if c2patool is not installed.
+    """
+    try:
+        result = subprocess.run(
+            ["c2patool", file_path, "--detailed"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode == 0 and result.stdout:
+            data: dict[str, Any] = json.loads(result.stdout)
+            return data
+    except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError):
+        pass
+    return {}
+
+
+def parse_c2patool_output(data: dict[str, Any]) -> dict[str, Any]:
+    """Parse c2patool JSON output into aivid format.
+
+    Extracts relevant fields from c2patool's detailed output and maps them
+    to aivid's C2PA info structure.
+    """
+    info: dict[str, Any] = {"has_c2pa": True, "source": "c2patool"}
+
+    # Extract active manifest label
+    if "active_manifest" in data:
+        info["manifest_id"] = data["active_manifest"]
+
+    # Extract manifest details
+    if "manifests" in data:
+        manifests = data["manifests"]
+        if isinstance(manifests, dict) and manifests:
+            # Get the first (active) manifest
+            manifest_id = data.get("active_manifest") or next(iter(manifests), None)
+            if manifest_id and manifest_id in manifests:
+                manifest = manifests[manifest_id]
+                info["claim_generator"] = manifest.get("claim_generator")
+                info["title"] = manifest.get("title")
+                info["format"] = manifest.get("format")
+
+                # Extract signature info
+                if "signature_info" in manifest:
+                    sig_info = manifest["signature_info"]
+                    info["issuer"] = sig_info.get("issuer")
+                    info["cert_serial_number"] = sig_info.get("cert_serial_number")
+                    info["time"] = sig_info.get("time")
+
+                # Extract assertions
+                assertions = manifest.get("assertions", [])
+                for assertion in assertions:
+                    label = assertion.get("label", "")
+                    assertion_data = assertion.get("data", {})
+
+                    if "c2pa.actions" in label:
+                        info["actions"] = assertion_data
+                    elif "stds.schema-org.CreativeWork" in label:
+                        info["creative_work"] = assertion_data
+                    elif "c2pa.hash.data" in label:
+                        info["has_hash"] = True
+                    elif "c2pa.ingredient" in label:
+                        if "ingredients" not in info:
+                            info["ingredients"] = []
+                        info["ingredients"].append(assertion_data)
+
+                # Extract ingredients count
+                if "ingredients" in manifest:
+                    info["ingredient_count"] = len(manifest["ingredients"])
+
+    # Extract validation status
+    if "validation_status" in data:
+        info["validation_status"] = data["validation_status"]
+
+    # Detect AI generator from claim_generator
+    claim_gen = info.get("claim_generator", "")
+    if claim_gen:
+        generators = {
+            "Sora": "OpenAI Sora",
+            "DALL-E": "OpenAI DALL-E",
+            "Midjourney": "Midjourney",
+            "Stable Diffusion": "Stability AI",
+            "Adobe Firefly": "Adobe Firefly",
+            "Runway": "Runway ML",
+            "Pika": "Pika Labs",
+            "Kling": "Kuaishou Kling",
+            "Luma": "Luma AI",
+            "Gemini": "Google Gemini",
+            "Veo": "Google Veo",
+        }
+        for key, value in generators.items():
+            if key.lower() in claim_gen.lower():
+                info["generator"] = value
+                break
+
+    # Extract signing authority from issuer
+    issuer = info.get("issuer", "")
+    if issuer:
+        authorities: list[str] = []
+        for auth in ["OpenAI", "Adobe", "Microsoft", "Google", "Meta", "Apple"]:
+            if auth.lower() in issuer.lower():
+                authorities.append(auth)
+        if authorities:
+            info["signing_authorities"] = authorities
+
+    return info
+
+
+def sign_with_c2pa(
+    input_path: str,
+    manifest_path: str,
+    output_path: str,
+    certificate_path: str | None = None,
+    private_key_path: str | None = None,
+) -> tuple[bool, str]:
+    """Sign a file with C2PA manifest using c2patool.
+
+    Args:
+        input_path: Path to the input media file
+        manifest_path: Path to the manifest JSON file
+        output_path: Path for the signed output file
+        certificate_path: Optional path to signing certificate
+        private_key_path: Optional path to private key
+
+    Returns:
+        Tuple of (success: bool, message: str)
+    """
+    if not check_c2patool_available():
+        return False, "c2patool not found. Install: cargo install c2patool"
+
+    if not os.path.exists(input_path):
+        return False, f"Input file not found: {input_path}"
+
+    if not os.path.exists(manifest_path):
+        return False, f"Manifest file not found: {manifest_path}"
+
+    cmd = ["c2patool", input_path, "-m", manifest_path, "-o", output_path]
+
+    # Add certificate and key if provided
+    if certificate_path and private_key_path:
+        if not os.path.exists(certificate_path):
+            return False, f"Certificate file not found: {certificate_path}"
+        if not os.path.exists(private_key_path):
+            return False, f"Private key file not found: {private_key_path}"
+        # c2patool uses environment variables for credentials
+        # or --signer-path for custom signers
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode == 0:
+            return True, f"Signed successfully: {output_path}"
+        return False, f"Signing failed: {result.stderr}"
+    except subprocess.TimeoutExpired:
+        return False, "Signing timed out (120s limit)"
+    except Exception as e:
+        return False, f"Signing error: {e}"
+
+
 def parse_c2pa_info(strings: list[str], file_path: str) -> dict[str, Any]:
     """Parse C2PA manifest information."""
     _ = file_path  # unused but kept for API consistency
@@ -597,8 +776,12 @@ def analyze_file(file_path: str) -> MetadataReport:
     # Extract strings
     strings = extract_strings(file_path)
 
-    # Parse various metadata types
-    report.c2pa_info = parse_c2pa_info(strings, file_path)
+    # Parse C2PA info - try c2patool first (more accurate), fallback to string parsing
+    c2patool_data = get_c2patool_metadata(file_path)
+    if c2patool_data:
+        report.c2pa_info = parse_c2patool_output(c2patool_data)
+    else:
+        report.c2pa_info = parse_c2pa_info(strings, file_path)
     report.xmp_metadata = parse_xmp_metadata(strings)
     report.creation_info = parse_creation_info(strings, ffprobe_data)
     report.encoding_info = parse_encoding_info(ffprobe_data, strings)
