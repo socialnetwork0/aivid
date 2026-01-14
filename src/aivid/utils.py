@@ -22,8 +22,9 @@ def get_file_info(file_path: str) -> dict[str, Any]:
 
     # st_birthtime is only available on macOS/BSD
     created: str | None = None
-    if hasattr(stat, "st_birthtime"):
-        created = datetime.fromtimestamp(getattr(stat, "st_birthtime")).isoformat()
+    birthtime = getattr(stat, "st_birthtime", None)
+    if birthtime is not None:
+        created = datetime.fromtimestamp(birthtime).isoformat()
 
     return {
         "filename": os.path.basename(file_path),
