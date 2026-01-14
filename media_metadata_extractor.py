@@ -40,7 +40,6 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Optional
 
 
 @dataclass
@@ -442,9 +441,7 @@ def parse_encoding_info(ffprobe_data: dict, strings: list) -> dict:
                         "mastering_display_metadata"
                     )
                 if "content_light_level" in side_data:
-                    stream_info["content_light_level"] = side_data.get(
-                        "content_light_level"
-                    )
+                    stream_info["content_light_level"] = side_data.get("content_light_level")
             info["video"] = stream_info
 
         elif stream_type == "audio":
@@ -457,9 +454,8 @@ def parse_encoding_info(ffprobe_data: dict, strings: list) -> dict:
                     "bits_per_sample": stream.get("bits_per_sample"),
                 }
             )
-            if "tags" in stream:
-                if "handler_name" in stream["tags"]:
-                    stream_info["handler"] = stream["tags"]["handler_name"]
+            if "tags" in stream and "handler_name" in stream["tags"]:
+                stream_info["handler"] = stream["tags"]["handler_name"]
             info["audio"] = stream_info
 
     # x264/x265 encoding options from strings
@@ -484,7 +480,7 @@ def parse_custom_tags(strings: list, ffprobe_data: dict) -> dict:
     for pattern, key in handler_patterns:
         matches = re.findall(pattern, combined, re.IGNORECASE)
         if matches:
-            unique = list(set(m.strip() for m in matches if m.strip()))
+            unique = list({m.strip() for m in matches if m.strip()})
             if unique:
                 tags[key] = unique
 
@@ -615,10 +611,8 @@ def extract_interesting_strings(strings: list) -> list:
 
     for s in strings:
         s_lower = s.lower()
-        if len(s) > 5 and len(s) < 500:
-            if any(kw in s_lower for kw in keywords):
-                if s not in interesting:
-                    interesting.append(s)
+        if 5 < len(s) < 500 and any(kw in s_lower for kw in keywords) and s not in interesting:
+            interesting.append(s)
 
     return interesting[:50]
 
@@ -779,7 +773,9 @@ def format_c2pa_report(report: MetadataReport) -> str:
     # Video basic info for context
     lines.append("## VIDEO INFO")
     lines.append("-" * 40)
-    lines.append(f"  Resolution: {video_info.get('width', 'N/A')}x{video_info.get('height', 'N/A')}")
+    lines.append(
+        f"  Resolution: {video_info.get('width', 'N/A')}x{video_info.get('height', 'N/A')}"
+    )
     lines.append(f"  Frame rate: {video_info.get('frame_rate', 'N/A')}")
     lines.append(f"  Duration: {report.container_info.get('duration', 'N/A')}s")
     lines.append(f"  Codec: {video_info.get('codec', 'N/A')} ({video_info.get('profile', '')})")
@@ -896,9 +892,18 @@ def format_report(report: MetadataReport, full: bool = False) -> str:
             for track in tracks:
                 track_type = track.get("@type", "Unknown")
                 lines.append(f"  [{track_type}]")
-                important_keys = ["Format", "CodecID", "Duration", "BitRate",
-                                  "Width", "Height", "FrameRate", "SamplingRate",
-                                  "Channels", "Encoded_Library"]
+                important_keys = [
+                    "Format",
+                    "CodecID",
+                    "Duration",
+                    "BitRate",
+                    "Width",
+                    "Height",
+                    "FrameRate",
+                    "SamplingRate",
+                    "Channels",
+                    "Encoded_Library",
+                ]
                 for k in important_keys:
                     if k in track:
                         lines.append(f"    {k}: {track[k]}")
@@ -1039,9 +1044,7 @@ Examples:
         action="store_true",
         help="C2PA mode: focus on AI content detection",
     )
-    mode_group.add_argument(
-        "-q", "--quiet", action="store_true", help="Quick summary only"
-    )
+    mode_group.add_argument("-q", "--quiet", action="store_true", help="Quick summary only")
 
     args = parser.parse_args()
 
