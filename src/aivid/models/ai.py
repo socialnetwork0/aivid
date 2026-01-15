@@ -99,7 +99,11 @@ class AIDetectionResult(BaseModel):
         return result
 
     def add_signal(
-        self, name: str, detected: bool, confidence: float = 0.0, description: str | None = None
+        self,
+        name: str,
+        detected: bool,
+        confidence: float = 0.0,
+        description: str | None = None,
     ) -> None:
         """Add a detection signal."""
         self.signals[name] = AISignal(

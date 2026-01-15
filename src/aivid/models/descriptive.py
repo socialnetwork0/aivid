@@ -1,8 +1,35 @@
 """Descriptive metadata models (XMP, EXIF, IPTC)."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+
+class TimestampInfo(BaseModel):
+    """Timestamp with source attribution.
+
+    Tracks where the timestamp came from for transparency and priority handling.
+    """
+
+    value: datetime | None = None
+    source: Literal["c2pa", "exiftool", "ffprobe", "filesystem"] | None = None
+    raw_value: str | None = None  # Original string before parsing
+
+
+class IPTCAIInfo(BaseModel):
+    """IPTC 2025.1 AI-related metadata fields.
+
+    Supports the new AI Content Declaration fields from IPTC Photo Metadata
+    Standard 2025.1 for marking AI-generated content.
+    """
+
+    ai_system_used: str | None = None  # AISystemUsed - e.g., "OpenAI DALL-E 3"
+    ai_system_version: str | None = None  # AISystemVersion
+    ai_prompt_info: str | None = None  # AIPromptInfo - the prompt used
+    ai_prompt_writer_name: str | None = None  # AIPromptWriterName
+    ai_generated: bool | None = None  # AIGenerated flag
+    ai_training_mining_usage: str | None = None  # AITrainingMiningUsage
 
 
 class DescriptiveMetadata(BaseModel):
@@ -19,6 +46,13 @@ class DescriptiveMetadata(BaseModel):
     creation_date: datetime | None = None
     modification_date: datetime | None = None
     software: str | None = None  # Creating software
+
+    # Detailed timestamp tracking with source attribution
+    creation_timestamp: TimestampInfo = Field(default_factory=TimestampInfo)
+    modification_timestamp: TimestampInfo = Field(default_factory=TimestampInfo)
+
+    # IPTC 2025.1 AI metadata fields
+    iptc_ai: IPTCAIInfo = Field(default_factory=IPTCAIInfo)
 
     # Keywords and categorization
     keywords: list[str] = Field(default_factory=list)

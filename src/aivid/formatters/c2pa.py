@@ -40,7 +40,9 @@ def format_c2pa(metadata: VideoMetadata) -> str:
         if c2pa.signer_name:
             lines.append(f"  Signer: {c2pa.signer_name}")
         if c2pa.signature_time:
-            lines.append(f"  Signed: {c2pa.signature_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
+            lines.append(
+                f"  Signed: {c2pa.signature_time.strftime('%Y-%m-%d %H:%M:%S UTC')}"
+            )
         if c2pa.digital_source_type:
             lines.append(f"  Digital Source Type: {c2pa.digital_source_type}")
         if c2pa.validation_state:

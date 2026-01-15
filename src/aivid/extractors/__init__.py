@@ -1,7 +1,12 @@
 """Metadata extractors for aivid."""
 
 from aivid.extractors.base import BaseExtractor
-from aivid.extractors.c2patool import C2PAToolExtractor, check_c2patool_available, sign_with_c2pa
+from aivid.extractors.c2patool import (
+    C2PAToolExtractor,
+    check_c2patool_available,
+    sign_with_c2pa,
+)
+from aivid.extractors.exiftool import ExifToolExtractor
 from aivid.extractors.ffprobe import FFprobeExtractor
 from aivid.extractors.heuristic import HeuristicDetector
 
@@ -16,9 +21,10 @@ except ImportError:
 
 # All available extractor classes (order doesn't matter, priority is used)
 _EXTRACTORS: list[type[BaseExtractor]] = [
-    FFprobeExtractor,
-    C2PAToolExtractor,
-    HeuristicDetector,
+    FFprobeExtractor,  # priority: 10
+    ExifToolExtractor,  # priority: 15
+    C2PAToolExtractor,  # priority: 25
+    HeuristicDetector,  # priority: 90
 ]
 
 # Add c2pa-python extractor if available
@@ -85,6 +91,7 @@ __all__ = [
     "BaseExtractor",
     # Extractors
     "FFprobeExtractor",
+    "ExifToolExtractor",
     "C2PAExtractor",
     "C2PAToolExtractor",
     "HeuristicDetector",
