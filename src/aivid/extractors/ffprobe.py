@@ -103,9 +103,7 @@ class FFprobeExtractor(BaseExtractor):
 
         metadata.technical.nb_streams = fmt.get("nb_streams")
 
-    def _parse_streams(
-        self, streams: list[dict[str, Any]], metadata: VideoMetadata
-    ) -> None:
+    def _parse_streams(self, streams: list[dict[str, Any]], metadata: VideoMetadata) -> None:
         """Parse stream information."""
         for stream in streams:
             codec_type = stream.get("codec_type")
@@ -115,9 +113,7 @@ class FFprobeExtractor(BaseExtractor):
             elif codec_type == "audio" and not metadata.technical.audio.codec:
                 self._parse_audio_stream(stream, metadata)
 
-    def _parse_video_stream(
-        self, stream: dict[str, Any], metadata: VideoMetadata
-    ) -> None:
+    def _parse_video_stream(self, stream: dict[str, Any], metadata: VideoMetadata) -> None:
         """Parse video stream information."""
         video = metadata.technical.video
         video.codec = stream.get("codec_name")
@@ -163,9 +159,7 @@ class FFprobeExtractor(BaseExtractor):
         video.encoder = tags.get("encoder")
         video.handler = tags.get("handler_name")
 
-    def _parse_audio_stream(
-        self, stream: dict[str, Any], metadata: VideoMetadata
-    ) -> None:
+    def _parse_audio_stream(self, stream: dict[str, Any], metadata: VideoMetadata) -> None:
         """Parse audio stream information."""
         audio = metadata.technical.audio
         audio.codec = stream.get("codec_name")
@@ -212,9 +206,7 @@ class FFprobeExtractor(BaseExtractor):
         creation_time = tags.get("creation_time")
         if creation_time:
             with contextlib.suppress(ValueError, TypeError):
-                parsed = datetime.fromisoformat(
-                    str(creation_time).replace("Z", "+00:00")
-                )
+                parsed = datetime.fromisoformat(str(creation_time).replace("Z", "+00:00"))
                 # Only set if not already set by higher priority source (e.g., exiftool)
                 if not desc.creation_timestamp.value:
                     desc.creation_timestamp.value = parsed

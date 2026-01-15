@@ -10,7 +10,7 @@ from typing import Any, ClassVar
 
 from aivid.extractors.base import BaseExtractor
 from aivid.models import C2PAAction, VideoMetadata
-from aivid.models.ai import AI_GENERATORS, SIGNING_AUTHORITIES
+from aivid.models.ai import AI_GENERATORS, SIGNING_AUTHORITIES, infer_sora_model
 
 # Pattern to extract task_id from Sora title format: {task_id}_media.mp4
 TASK_ID_PATTERN = re.compile(r"^([a-f0-9]{32})_media\.(mp4|webm|mov)$", re.IGNORECASE)
@@ -98,9 +98,7 @@ class C2PAToolExtractor(BaseExtractor):
                 # Extract SDK version info (e.g., "org.contentauth.c2pa_rs": "0.67.1")
                 for key, value in first_gen.items():
                     if key.startswith("org.contentauth.") or key == "version":
-                        c2pa.claim_generator_product = key.replace(
-                            "org.contentauth.", ""
-                        )
+                        c2pa.claim_generator_product = key.replace("org.contentauth.", "")
                         c2pa.claim_generator_version = str(value)
                         break
             elif isinstance(first_gen, str):
@@ -121,9 +119,7 @@ class C2PAToolExtractor(BaseExtractor):
             time_str = sig_info.get("time")
             if time_str:
                 with contextlib.suppress(ValueError, TypeError):
-                    c2pa.signature_time = datetime.fromisoformat(
-                        time_str.replace("Z", "+00:00")
-                    )
+                    c2pa.signature_time = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
 
         # Parse assertions
         assertions = manifest.get("assertions", [])
@@ -162,9 +158,7 @@ class C2PAToolExtractor(BaseExtractor):
             tsa_info = sig_info.get("time_authority", {}) or sig_info.get("tsa", {})
             if tsa_info:
                 c2pa.timestamp_validated = True
-                c2pa.timestamp_responder = tsa_info.get("responder") or tsa_info.get(
-                    "name"
-                )
+                c2pa.timestamp_responder = tsa_info.get("responder") or tsa_info.get("name")
             elif c2pa.signature_time:
                 # Has signature time but unknown if TSA validated
                 c2pa.timestamp_validated = None
@@ -210,9 +204,7 @@ class C2PAToolExtractor(BaseExtractor):
                 ing_format = ingredient.get("format", "").lower()
                 relationship = ingredient.get("relationship", "").lower()
 
-                if any(
-                    x in ing_format for x in ["image", "jpeg", "jpg", "png", "webp"]
-                ):
+                if any(x in ing_format for x in ["image", "jpeg", "jpg", "png", "webp"]):
                     has_image = True
                 if any(x in ing_format for x in ["video", "mp4", "webm", "mov"]):
                     has_video = True
@@ -230,9 +222,7 @@ class C2PAToolExtractor(BaseExtractor):
                 # Has ingredients but can't determine type
                 c2pa.generation_mode = "text2video"
 
-    def _parse_actions(
-        self, action_data: dict[str, Any], metadata: VideoMetadata
-    ) -> None:
+    def _parse_actions(self, action_data: dict[str, Any], metadata: VideoMetadata) -> None:
         """Parse C2PA actions assertion."""
         c2pa = metadata.provenance.c2pa
         actions_list = action_data.get("actions", [])
@@ -260,9 +250,7 @@ class C2PAToolExtractor(BaseExtractor):
             when_str = action.get("when")
             if when_str:
                 with contextlib.suppress(ValueError, TypeError):
-                    when_time = datetime.fromisoformat(
-                        str(when_str).replace("Z", "+00:00")
-                    )
+                    when_time = datetime.fromisoformat(str(when_str).replace("Z", "+00:00"))
 
             # Create action record
             c2pa_action = C2PAAction(
@@ -277,10 +265,7 @@ class C2PAToolExtractor(BaseExtractor):
             if when_time and action_type in ("c2pa.created", "c2pa.published"):
                 desc = metadata.descriptive
                 # C2PA timestamps have highest priority
-                if (
-                    not desc.creation_timestamp.value
-                    or desc.creation_timestamp.source != "c2pa"
-                ):
+                if not desc.creation_timestamp.value or desc.creation_timestamp.source != "c2pa":
                     desc.creation_timestamp.value = when_time
                     desc.creation_timestamp.source = "c2pa"
                     desc.creation_timestamp.raw_value = str(when_str)
@@ -291,7 +276,7 @@ class C2PAToolExtractor(BaseExtractor):
         c2pa = metadata.provenance.c2pa
         ai = metadata.ai_detection
 
-        # Check digital source type for AI generation
+        # Check digital source type for AI generation (FACT: direct C2PA metadata)
         if c2pa.is_ai_generated:
             ai.is_ai_generated = True
             ai.confidence = 1.0
@@ -300,6 +285,7 @@ class C2PAToolExtractor(BaseExtractor):
                 True,
                 1.0,
                 f"digitalSourceType: {c2pa.digital_source_type}",
+                is_fact=True,  # Direct C2PA metadata
             )
 
         # Identify generator from claim_generator or software_agent
@@ -315,11 +301,16 @@ class C2PAToolExtractor(BaseExtractor):
         # Identify signing authorities
         if c2pa.issuer:
             for auth in SIGNING_AUTHORITIES:
-                if (
-                    auth.lower() in c2pa.issuer.lower()
-                    and auth not in ai.signing_authorities
-                ):
+                if auth.lower() in c2pa.issuer.lower() and auth not in ai.signing_authorities:
                     ai.signing_authorities.append(auth)
+
+        # Infer Sora model from resolution (only if generator is Sora)
+        if ai.generator == "OpenAI Sora":
+            video = metadata.technical.video
+            if video.width and video.height:
+                model, confidence = infer_sora_model(video.width, video.height)
+                ai.inferred_model = model
+                ai.model_confidence = confidence
 
 
 def check_c2patool_available() -> bool:

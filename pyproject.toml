@@ -65,13 +65,39 @@ exif = [
 mediainfo = [
     "pymediainfo>=6.0",
 ]
+# URL download support (yt-dlp)
+download = [
+    "yt-dlp>=2024.1.0",
+]
+# Platform API support (YouTube, TikTok)
+api = [
+    "httpx>=0.25.0",
+]
+# Watermark detection (Meta AudioSeal/VideoSeal) - heavy ML dependencies
+watermark = [
+    "audioseal>=0.1.0",
+    "torch>=2.0",
+    "torchaudio>=2.0",
+]
+# Config file support
+config = [
+    "pyyaml>=6.0",
+]
 # Recommended install (c2pa support)
 default = [
     "aivid[c2pa]",
 ]
-# Full install (all features)
+# Full install (all features except watermark - heavy)
 full = [
-    "aivid[c2pa,exif,mediainfo]",
+    "aivid[c2pa,exif,mediainfo,download,api,config]",
+]
+# Lightweight install (no ML dependencies)
+lite = [
+    "aivid[c2pa,exif,download,api,config]",
+]
+# All features including watermark detection
+all = [
+    "aivid[full,watermark]",
 ]
 # Development dependencies
 dev = [
@@ -136,7 +162,19 @@ module = "tests.*"
 disallow_untyped_defs = false
 
 [[tool.mypy.overrides]]
-module = ["c2pa", "c2pa.*", "exiftool", "exiftool.*", "pymediainfo", "pymediainfo.*"]
+module = [
+    "c2pa", "c2pa.*",
+    "exiftool", "exiftool.*",
+    "pymediainfo", "pymediainfo.*",
+    "yt_dlp", "yt_dlp.*",
+    "httpx", "httpx.*",
+    "audioseal", "audioseal.*",
+    "videoseal", "videoseal.*",
+    "torch", "torch.*",
+    "torchaudio", "torchaudio.*",
+    "torchvision", "torchvision.*",
+    "yaml", "yaml.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

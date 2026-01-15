@@ -56,6 +56,7 @@ class ExifToolExtractor(BaseExtractor):
         self._parse_descriptive(exif_data, metadata)
         self._parse_iptc_ai(exif_data, metadata)
         self._parse_timestamps(exif_data, metadata)
+        self._parse_platform_aigc(exif_data, metadata)
 
     def _run_exiftool(self, path: str) -> dict[str, Any]:
         """Run exiftool and return JSON output."""
@@ -99,9 +100,7 @@ class ExifToolExtractor(BaseExtractor):
 
         # Title (various sources)
         desc.title = desc.title or (
-            data.get("XMP:Title")
-            or data.get("QuickTime:Title")
-            or data.get("IPTC:ObjectName")
+            data.get("XMP:Title") or data.get("QuickTime:Title") or data.get("IPTC:ObjectName")
         )
 
         # Description
@@ -113,22 +112,16 @@ class ExifToolExtractor(BaseExtractor):
 
         # Creator
         desc.creator = desc.creator or (
-            data.get("XMP:Creator")
-            or data.get("EXIF:Artist")
-            or data.get("IPTC:By-line")
+            data.get("XMP:Creator") or data.get("EXIF:Artist") or data.get("IPTC:By-line")
         )
 
         # Copyright
         desc.copyright = desc.copyright or (
-            data.get("XMP:Rights")
-            or data.get("EXIF:Copyright")
-            or data.get("IPTC:CopyrightNotice")
+            data.get("XMP:Rights") or data.get("EXIF:Copyright") or data.get("IPTC:CopyrightNotice")
         )
 
         # Software
-        desc.software = desc.software or (
-            data.get("XMP:CreatorTool") or data.get("EXIF:Software")
-        )
+        desc.software = desc.software or (data.get("XMP:CreatorTool") or data.get("EXIF:Software"))
 
         # Keywords
         keywords = data.get("XMP:Subject") or data.get("IPTC:Keywords")
@@ -156,9 +149,7 @@ class ExifToolExtractor(BaseExtractor):
         ai = metadata.descriptive.iptc_ai
 
         # IPTC AI Content Declaration fields (check both XMP and IPTC namespaces)
-        ai.ai_system_used = data.get("XMP:AISystemUsed") or data.get(
-            "IPTC:AISystemUsed"
-        )
+        ai.ai_system_used = data.get("XMP:AISystemUsed") or data.get("IPTC:AISystemUsed")
         ai.ai_system_version = data.get("XMP:AISystemVersion")
         ai.ai_prompt_info = data.get("XMP:AIPromptInfo")
         ai.ai_prompt_writer_name = data.get("XMP:AIPromptWriterName")
@@ -221,6 +212,53 @@ class ExifToolExtractor(BaseExtractor):
                         desc.modification_timestamp.raw_value = str(data[key])
                         desc.modification_date = parsed
                     break
+
+    def _parse_platform_aigc(self, data: dict[str, Any], metadata: VideoMetadata) -> None:
+        """Parse platform-specific AIGC labels (TikTok, etc.)."""
+        platform = metadata.provenance.platform_aigc
+
+        # TikTok AIGC fields (stored in Keys: namespace)
+        aigc_info = data.get("Keys:AigcInfo")
+        if aigc_info:
+            # Parse JSON: {"aigc_label_type":2}
+            if isinstance(aigc_info, str):
+                try:
+                    import json
+
+                    aigc_data = json.loads(aigc_info)
+                    platform.tiktok_aigc_label_type = aigc_data.get("aigc_label_type")
+                except json.JSONDecodeError:
+                    pass
+            elif isinstance(aigc_info, dict):
+                platform.tiktok_aigc_label_type = aigc_info.get("aigc_label_type")
+
+        # TikTok video ID from Comment field (vid:xxx)
+        comment = data.get("Keys:Comment")
+        if comment and isinstance(comment, str) and comment.startswith("vid:"):
+            platform.tiktok_video_id = comment[4:]  # Remove "vid:" prefix
+
+        # TikTok video MD5
+        vid_md5 = data.get("Keys:VidMd5")
+        if vid_md5:
+            platform.tiktok_video_md5 = vid_md5
+
+        # Update AI detection if TikTok AIGC label found
+        if platform.is_tiktok_ai_labeled:
+            self._update_ai_from_tiktok(metadata)
+
+    def _update_ai_from_tiktok(self, metadata: VideoMetadata) -> None:
+        """Update AI detection based on TikTok AIGC label."""
+        ai = metadata.ai_detection
+        platform = metadata.provenance.platform_aigc
+
+        ai.is_ai_generated = True
+        ai.add_signal(
+            "tiktok_aigc",
+            True,
+            0.95,
+            f"TikTok AIGC label: aigc_label_type={platform.tiktok_aigc_label_type}",
+            is_fact=True,  # Direct platform metadata
+        )
 
     def _update_ai_detection(self, metadata: VideoMetadata) -> None:
         """Update AI detection based on IPTC fields."""

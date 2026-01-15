@@ -95,9 +95,7 @@ def parse_mp4_boxes(file_path: str, max_depth: int = 5) -> list[BoxInfo]:
             file_size = f.tell()
             parse_boxes(f, 0, file_size, 0)
     except Exception as e:
-        boxes.append(
-            BoxInfo(type="error", size=0, offset=0, depth=0, data_preview=str(e))
-        )
+        boxes.append(BoxInfo(type="error", size=0, offset=0, depth=0, data_preview=str(e)))
 
     return boxes
 

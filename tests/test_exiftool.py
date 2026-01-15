@@ -83,10 +83,7 @@ class TestExifToolExtractor:
 
         assert metadata.descriptive.iptc_ai.ai_system_used == "OpenAI DALL-E 3"
         assert metadata.descriptive.iptc_ai.ai_generated is True
-        assert (
-            metadata.descriptive.iptc_ai.ai_prompt_info
-            == "A beautiful sunset over mountains"
-        )
+        assert metadata.descriptive.iptc_ai.ai_prompt_info == "A beautiful sunset over mountains"
         assert metadata.descriptive.iptc_ai.ai_system_version == "3.0"
 
     def test_parse_iptc_ai_updates_detection(self):

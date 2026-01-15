@@ -20,10 +20,26 @@ def format_default(metadata: VideoMetadata) -> str:
     lines.append(f"File: {filename}")
     lines.append("=" * 70)
 
+    # Source section (if video was downloaded from URL)
+    source = metadata.source
+    if source.is_from_url:
+        lines.append("")
+        lines.append("## SOURCE")
+        lines.append(f"  Platform:     {source.platform.value.capitalize()}")
+        if source.original_url:
+            lines.append(f"  URL:          {source.original_url}")
+        if source.video_id:
+            lines.append(f"  Video ID:     {source.video_id}")
+        if source.uploader:
+            lines.append(f"  Uploader:     {source.uploader}")
+        if source.title:
+            lines.append(f"  Title:        {source.title}")
+
     # AI Generation section (if C2PA or AI detected)
     c2pa = metadata.provenance.c2pa
     ai = metadata.ai_detection
     desc = metadata.descriptive
+    platform_aigc = metadata.provenance.platform_aigc
 
     if c2pa.has_c2pa or ai.is_ai_generated:
         lines.append("")
@@ -65,14 +81,12 @@ def format_default(metadata: VideoMetadata) -> str:
         if c2pa.digital_source_type:
             lines.append(f"  Source Type:  {c2pa.digital_source_type}")
 
-        # Generation mode - prefer model field, fallback to inference
+        # Generation mode - prefer model field, fallback to inference [ANALYSIS]
         if c2pa.generation_mode:
-            lines.append(f"  Gen Mode:     {c2pa.generation_mode}")
+            lines.append(f"  Gen Mode:     {c2pa.generation_mode} [ANALYSIS]")
         elif c2pa.has_c2pa:
-            gen_mode = (
-                "image/video-to-video" if c2pa.ingredient_count > 0 else "text-to-video"
-            )
-            lines.append(f"  Gen Mode:     {gen_mode}")
+            gen_mode = "image/video-to-video" if c2pa.ingredient_count > 0 else "text-to-video"
+            lines.append(f"  Gen Mode:     {gen_mode} [ANALYSIS]")
 
         # Signer info
         if c2pa.issuer and c2pa.signer_name:
@@ -89,7 +103,50 @@ def format_default(metadata: VideoMetadata) -> str:
         if c2pa.ingredient_count > 0:
             lines.append(f"  Ingredients:  {c2pa.ingredient_count} item(s)")
         else:
-            lines.append(f"  Ingredients:  None")
+            lines.append("  Ingredients:  None")
+
+    # Platform AIGC section (TikTok embedded metadata)
+    if platform_aigc.has_tiktok_metadata:
+        lines.append("")
+        lines.append("## PLATFORM AIGC (TikTok)")
+
+        # AIGC label type
+        if platform_aigc.tiktok_aigc_label_type is not None:
+            label_desc = "AI Generated" if platform_aigc.tiktok_aigc_label_type == 2 else "Unknown"
+            lines.append(f"  AIGC Label:   {platform_aigc.tiktok_aigc_label_type} ({label_desc})")
+        else:
+            lines.append("  AIGC Label:   None (Human Content)")
+
+        # Video ID
+        if platform_aigc.tiktok_video_id:
+            lines.append(f"  Video ID:     {platform_aigc.tiktok_video_id}")
+
+        # Video MD5
+        if platform_aigc.tiktok_video_md5:
+            lines.append(f"  Video MD5:    {platform_aigc.tiktok_video_md5}")
+
+    # YouTube API section (from YouTube Data API v3)
+    if platform_aigc.youtube_contains_synthetic_media is not None:
+        lines.append("")
+        lines.append("## YOUTUBE API")
+        if platform_aigc.youtube_video_id:
+            lines.append(f"  Video ID:     {platform_aigc.youtube_video_id}")
+        if platform_aigc.youtube_contains_synthetic_media:
+            lines.append("  AI Label:     Yes - Contains Synthetic Media")
+        else:
+            lines.append("  AI Label:     No AI label detected")
+
+    # Watermark Detection section
+    watermarks = metadata.provenance.watermarks
+    if watermarks.detections:
+        lines.append("")
+        lines.append("## WATERMARK DETECTION")
+        for detection in watermarks.detections:
+            icon = "Yes" if detection.detected else "No"
+            conf_str = f" ({detection.confidence:.1%})" if detection.detected else ""
+            lines.append(f"  {detection.detector.capitalize()}:    {icon}{conf_str}")
+        if watermarks.has_watermark:
+            lines.append("  Summary:      Watermark detected")
 
     # Video Info section
     lines.append("")
@@ -142,9 +199,7 @@ def format_default(metadata: VideoMetadata) -> str:
         if c2pa.cert_trusted is not None:
             trust_icon = "✓" if c2pa.cert_trusted else "✗"
             trust_text = (
-                "Certificate chain verified"
-                if c2pa.cert_trusted
-                else "Certificate NOT trusted"
+                "Certificate chain verified" if c2pa.cert_trusted else "Certificate NOT trusted"
             )
             lines.append(f"  Trusted:      {trust_icon} {trust_text}")
 

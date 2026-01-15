@@ -2,7 +2,7 @@
 
 > AI video toolkit - detect, analyze, and work with AI-generated videos
 
-[![PyPI version](https://badge.fury.io/py/aivid.svg)](https://pypi.org/project/aivid/)
+[![PyPI version](https://img.shields.io/pypi/v/aivid)](https://pypi.org/project/aivid/)
 [![Python versions](https://img.shields.io/pypi/pyversions/aivid)](https://pypi.org/project/aivid/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/SocialNetwork0/aivid/workflows/CI/badge.svg)](https://github.com/SocialNetwork0/aivid/actions)
@@ -118,30 +118,35 @@ aivid --sign manifest.json -o signed_video.mp4 video.mp4
 ### Python API
 
 ```python
-from aivid import analyze_file, check_c2patool_available, sign_with_c2pa, MetadataReport
+from aivid import analyze_file, check_c2patool_available, sign_with_c2pa, VideoMetadata
 
 # Analyze a video file
-report = analyze_file("video.mp4")
+metadata = analyze_file("video.mp4")
 
 # Check if AI-generated
-if report.is_ai_generated:
-    print(f"AI Generator: {report.ai_generator}")
+if metadata.is_ai_generated:
+    print(f"AI Generator: {metadata.ai_generator}")
 
-# Access metadata
-print(f"Duration: {report.container_info.get('duration')}s")
-print(f"Resolution: {report.encoding_info['video']['width']}x{report.encoding_info['video']['height']}")
+# Access metadata (pydantic models)
+print(f"Duration: {metadata.duration}s")
+print(f"Resolution: {metadata.resolution}")
+print(f"Video codec: {metadata.technical.video.codec}")
+print(f"Audio sample rate: {metadata.technical.audio.sample_rate}")
 
 # C2PA information
-if report.c2pa_info:
-    print(f"C2PA Manifest: {report.c2pa_info.get('manifest_id')}")
-    print(f"Signing Authority: {report.c2pa_info.get('signing_authorities')}")
+if metadata.has_c2pa:
+    print(f"C2PA Issuer: {metadata.provenance.c2pa.issuer}")
+    print(f"C2PA Generator: {metadata.provenance.c2pa.generator}")
+
+# Export as JSON
+print(metadata.model_dump_json(indent=2))
 
 # Sign a file with C2PA manifest (requires c2patool)
 if check_c2patool_available():
     sign_with_c2pa(
         input_path="video.mp4",
+        manifest_path="manifest.json",
         output_path="signed_video.mp4",
-        manifest_path="manifest.json"
     )
 ```
 
@@ -231,25 +236,18 @@ uv pip install -e ".[dev]"
 pre-commit install
 ```
 
-### Local CLI usage for testing (方法 2，本地 CLI 测试)
-
-> 方便本地从源码仓库里直接跑 `aivid` 命令做测试（你现在用的就是这种方式）
+### Local CLI Testing
 
 ```bash
-cd /Users/yuanlu/Code/ai-video-tools
-
-# 1. 创建并激活虚拟环境（只需创建一次，之后每次只需激活）
-uv venv
+# Activate virtual environment
 source .venv/bin/activate  # macOS / Linux
 
-# 2. 以开发模式安装当前仓库（代码改动会立刻反映到 CLI）
+# Install in editable mode (code changes reflect immediately)
 uv pip install -e ".[dev]"
 
-# 3. 在这个虚拟环境里使用 aivid 命令进行测试
+# Test CLI
 aivid --help
-
-# 示例：对 data 目录下的视频做一次基础分析
-aivid data/sora_video/19700121_0310_69650d0aeaec8191bdb986a1b9b2a84f.mp4
+aivid video.mp4
 ```
 
 ### Running Tests

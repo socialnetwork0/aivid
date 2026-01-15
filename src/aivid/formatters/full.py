@@ -53,6 +53,49 @@ def format_full(metadata: VideoMetadata) -> str:
     lines.append(f"  extension: {fi.extension}")
     lines.append("")
 
+    # Source Info (if downloaded from URL)
+    source = metadata.source
+    if source.is_from_url:
+        lines.append("## SOURCE INFORMATION")
+        lines.append(f"  platform: {source.platform.value}")
+        if source.original_url:
+            lines.append(f"  original_url: {source.original_url}")
+        if source.video_id:
+            lines.append(f"  video_id: {source.video_id}")
+        if source.downloaded_path:
+            lines.append(f"  downloaded_path: {source.downloaded_path}")
+        if source.download_timestamp:
+            lines.append(f"  download_timestamp: {source.download_timestamp.isoformat()}")
+        if source.uploader:
+            lines.append(f"  uploader: {source.uploader}")
+        if source.uploader_id:
+            lines.append(f"  uploader_id: {source.uploader_id}")
+        if source.upload_date:
+            lines.append(f"  upload_date: {source.upload_date.isoformat()}")
+        if source.title:
+            lines.append(f"  title: {source.title}")
+        if source.description:
+            # Truncate long descriptions
+            desc_preview = source.description[:200]
+            if len(source.description) > 200:
+                desc_preview += "..."
+            lines.append(f"  description: {desc_preview}")
+        if source.duration_seconds:
+            lines.append(f"  duration_seconds: {source.duration_seconds}")
+        if source.view_count:
+            lines.append(f"  view_count: {source.view_count:,}")
+        if source.like_count:
+            lines.append(f"  like_count: {source.like_count:,}")
+        if source.comment_count:
+            lines.append(f"  comment_count: {source.comment_count:,}")
+        if source.tags:
+            lines.append(f"  tags: {', '.join(source.tags[:10])}")
+            if len(source.tags) > 10:
+                lines.append(f"    ... and {len(source.tags) - 10} more tags")
+        if source.categories:
+            lines.append(f"  categories: {', '.join(source.categories)}")
+        lines.append("")
+
     # Technical Info
     tech = metadata.technical
     lines.append("## TECHNICAL INFORMATION")
@@ -106,9 +149,7 @@ def format_full(metadata: VideoMetadata) -> str:
             if audio.sample_rate == 96000:
                 lines.append("    sample_rate_note: Sora signature (typical: 48000)")
             elif audio.sample_rate not in (44100, 48000, 22050, 11025, 8000, 16000):
-                lines.append(
-                    f"    sample_rate_note: Unusual rate (typical: 44100/48000)"
-                )
+                lines.append("    sample_rate_note: Unusual rate (typical: 44100/48000)")
         if audio.channels:
             lines.append(f"    channels: {audio.channels}")
         if audio.channel_layout:
@@ -171,7 +212,7 @@ def format_full(metadata: VideoMetadata) -> str:
         else:
             lines.append("  ingredients: None")
         if c2pa.generation_mode:
-            lines.append(f"  generation_mode: {c2pa.generation_mode}")
+            lines.append(f"  generation_mode: {c2pa.generation_mode} [ANALYSIS]")
         lines.append("")
 
         # Validation details subsection
@@ -210,14 +251,106 @@ def format_full(metadata: VideoMetadata) -> str:
             lines.append(f"  generator: {ai.generator}")
         if ai.generator_raw:
             lines.append(f"  generator_raw: {ai.generator_raw}")
+        # Show inferred model for generators with multiple models (e.g., Sora)
+        if ai.inferred_model or ai.model_confidence:
+            if ai.inferred_model:
+                lines.append(
+                    f"  inferred_model: {ai.inferred_model} ({ai.model_confidence}) [ANALYSIS]"
+                )
+            else:
+                # No model could be inferred
+                res = metadata.technical.video.resolution or "unknown"
+                if ai.model_confidence == "ambiguous":
+                    lines.append(f"  inferred_model: sora-2 or sora-2-pro ({res}) [ANALYSIS]")
+                else:
+                    lines.append(f"  inferred_model: unknown ({res}) [ANALYSIS]")
         lines.append(f"  confidence: {ai.confidence:.2f}")
         if ai.signing_authorities:
             lines.append(f"  signing_authorities: {', '.join(ai.signing_authorities)}")
         if ai.signals:
-            lines.append("  signals:")
-            for name, signal in ai.signals.items():
-                icon = "✓" if signal.detected else "✗"
-                lines.append(f"    {icon} {name}: {signal.description or ''}")
+            # Separate facts from analysis
+            facts = {k: v for k, v in ai.signals.items() if v.is_fact}
+            analysis = {k: v for k, v in ai.signals.items() if not v.is_fact}
+
+            if facts:
+                lines.append("  signals [FACT - from metadata]:")
+                for name, signal in facts.items():
+                    icon = "✓" if signal.detected else "✗"
+                    lines.append(f"    {icon} {name}: {signal.description or ''}")
+            if analysis:
+                lines.append("  signals [ANALYSIS - inferred]:")
+                for name, signal in analysis.items():
+                    icon = "✓" if signal.detected else "✗"
+                    lines.append(f"    {icon} {name}: {signal.description or ''}")
+        lines.append("")
+
+    # Platform API Labels (YouTube/TikTok API results)
+    platform_aigc = metadata.provenance.platform_aigc
+    has_platform_api = any(
+        [
+            platform_aigc.youtube_contains_synthetic_media is not None,
+            platform_aigc.tiktok_api_video_tag_type is not None,
+        ]
+    )
+    if has_platform_api:
+        lines.append("## PLATFORM API LABELS")
+
+        # YouTube API
+        if platform_aigc.youtube_contains_synthetic_media is not None:
+            lines.append("  [YOUTUBE DATA API v3]")
+            if platform_aigc.youtube_video_id:
+                lines.append(f"    video_id: {platform_aigc.youtube_video_id}")
+            lines.append(
+                f"    contains_synthetic_media: {platform_aigc.youtube_contains_synthetic_media}"
+            )
+            if platform_aigc.youtube_contains_synthetic_media:
+                lines.append("    interpretation: Video contains AI-generated content")
+            else:
+                lines.append("    interpretation: No AI label from YouTube")
+
+        # TikTok Research API
+        if platform_aigc.tiktok_api_video_tag_type is not None:
+            lines.append("  [TIKTOK RESEARCH API]")
+            if platform_aigc.tiktok_api_video_tag_number is not None:
+                tag_meaning = {
+                    1: "Creator labeled",
+                    2: "Auto-detected",
+                }.get(platform_aigc.tiktok_api_video_tag_number, "Unknown")
+                lines.append(
+                    f"    video_tag_number: {platform_aigc.tiktok_api_video_tag_number} ({tag_meaning})"
+                )
+            lines.append(f"    video_tag_type: {platform_aigc.tiktok_api_video_tag_type}")
+            if platform_aigc.is_tiktok_api_ai_labeled:
+                lines.append("    interpretation: TikTok flagged as AI-generated")
+
+        lines.append("")
+
+    # Watermark Detection
+    watermarks = metadata.provenance.watermarks
+    if watermarks.detections:
+        lines.append("## WATERMARK DETECTION")
+        lines.append(f"  has_watermark: {watermarks.has_watermark}")
+        lines.append(f"  overall_confidence: {watermarks.overall_confidence:.2f}")
+        lines.append(f"  detectors_run: {len(watermarks.detections)}")
+        lines.append("")
+
+        for detection in watermarks.detections:
+            lines.append(f"  [{detection.detector.upper()}]")
+            lines.append(f"    detected: {detection.detected}")
+            lines.append(f"    confidence: {detection.confidence:.4f}")
+            if detection.watermark_type:
+                lines.append(f"    watermark_type: {detection.watermark_type}")
+            if detection.message_bits:
+                lines.append(f"    message_bits: {detection.message_bits}")
+            if detection.message_decoded:
+                lines.append(f"    message_decoded: {detection.message_decoded}")
+            if detection.frames_analyzed:
+                lines.append(f"    frames_analyzed: {detection.frames_analyzed}")
+            if detection.positive_frames is not None:
+                lines.append(f"    positive_frames: {detection.positive_frames}")
+            if detection.detection_threshold is not None:
+                lines.append(f"    detection_threshold: {detection.detection_threshold}")
+
         lines.append("")
 
     # Descriptive Metadata
@@ -281,9 +414,7 @@ def format_full(metadata: VideoMetadata) -> str:
         if iptc_ai.ai_prompt_writer_name:
             lines.append(f"  ai_prompt_writer_name: {iptc_ai.ai_prompt_writer_name}")
         if iptc_ai.ai_training_mining_usage:
-            lines.append(
-                f"  ai_training_mining_usage: {iptc_ai.ai_training_mining_usage}"
-            )
+            lines.append(f"  ai_training_mining_usage: {iptc_ai.ai_training_mining_usage}")
         lines.append("")
 
     # Raw Data
@@ -294,9 +425,7 @@ def format_full(metadata: VideoMetadata) -> str:
         lines.append("## MP4 BOX STRUCTURE")
         for box in raw.box_structure[:50]:
             indent = "  " * box.depth
-            lines.append(
-                f"  {indent}{box.type:8s} size={box.size:>12,}  offset={box.offset}"
-            )
+            lines.append(f"  {indent}{box.type:8s} size={box.size:>12,}  offset={box.offset}")
         if len(raw.box_structure) > 50:
             lines.append(f"  ... and {len(raw.box_structure) - 50} more boxes")
         lines.append("")

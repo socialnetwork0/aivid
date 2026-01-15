@@ -93,9 +93,7 @@ class C2PAExtractor(BaseExtractor):
                 # Extract SDK version info (e.g., "org.contentauth.c2pa_rs": "0.67.1")
                 for key, value in first_gen.items():
                     if key.startswith("org.contentauth.") or key == "version":
-                        c2pa.claim_generator_product = key.replace(
-                            "org.contentauth.", ""
-                        )
+                        c2pa.claim_generator_product = key.replace("org.contentauth.", "")
                         c2pa.claim_generator_version = str(value)
                         break
             elif isinstance(first_gen, str):
@@ -117,9 +115,7 @@ class C2PAExtractor(BaseExtractor):
             if time_str:
                 with contextlib.suppress(ValueError, TypeError):
                     # Handle ISO format with timezone
-                    c2pa.signature_time = datetime.fromisoformat(
-                        time_str.replace("Z", "+00:00")
-                    )
+                    c2pa.signature_time = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
 
         # Parse assertions
         assertions = manifest.get("assertions", [])
@@ -158,9 +154,7 @@ class C2PAExtractor(BaseExtractor):
             tsa_info = sig_info.get("time_authority", {}) or sig_info.get("tsa", {})
             if tsa_info:
                 c2pa.timestamp_validated = True
-                c2pa.timestamp_responder = tsa_info.get("responder") or tsa_info.get(
-                    "name"
-                )
+                c2pa.timestamp_responder = tsa_info.get("responder") or tsa_info.get("name")
             elif c2pa.signature_time:
                 # Has signature time but unknown if TSA validated
                 c2pa.timestamp_validated = None
@@ -207,9 +201,7 @@ class C2PAExtractor(BaseExtractor):
                 ing_format = ingredient.get("format", "").lower()
                 relationship = ingredient.get("relationship", "").lower()
 
-                if any(
-                    x in ing_format for x in ["image", "jpeg", "jpg", "png", "webp"]
-                ):
+                if any(x in ing_format for x in ["image", "jpeg", "jpg", "png", "webp"]):
                     has_image = True
                 if any(x in ing_format for x in ["video", "mp4", "webm", "mov"]):
                     has_video = True
@@ -227,9 +219,7 @@ class C2PAExtractor(BaseExtractor):
                 # Has ingredients but can't determine type
                 c2pa.generation_mode = "text2video"
 
-    def _parse_actions(
-        self, action_data: dict[str, Any], metadata: VideoMetadata
-    ) -> None:
+    def _parse_actions(self, action_data: dict[str, Any], metadata: VideoMetadata) -> None:
         """Parse C2PA actions assertion."""
         c2pa = metadata.provenance.c2pa
         actions_list = action_data.get("actions", [])
@@ -258,9 +248,7 @@ class C2PAExtractor(BaseExtractor):
             when_str = action.get("when")
             if when_str:
                 with contextlib.suppress(ValueError, TypeError):
-                    when_time = datetime.fromisoformat(
-                        str(when_str).replace("Z", "+00:00")
-                    )
+                    when_time = datetime.fromisoformat(str(when_str).replace("Z", "+00:00"))
 
             # Create action record
             c2pa_action = C2PAAction(
@@ -275,10 +263,7 @@ class C2PAExtractor(BaseExtractor):
             if when_time and action_type in ("c2pa.created", "c2pa.published"):
                 desc = metadata.descriptive
                 # C2PA timestamps have highest priority
-                if (
-                    not desc.creation_timestamp.value
-                    or desc.creation_timestamp.source != "c2pa"
-                ):
+                if not desc.creation_timestamp.value or desc.creation_timestamp.source != "c2pa":
                     desc.creation_timestamp.value = when_time
                     desc.creation_timestamp.source = "c2pa"
                     desc.creation_timestamp.raw_value = str(when_str)
@@ -313,8 +298,5 @@ class C2PAExtractor(BaseExtractor):
         # Identify signing authorities
         if c2pa.issuer:
             for auth in SIGNING_AUTHORITIES:
-                if (
-                    auth.lower() in c2pa.issuer.lower()
-                    and auth not in ai.signing_authorities
-                ):
+                if auth.lower() in c2pa.issuer.lower() and auth not in ai.signing_authorities:
                     ai.signing_authorities.append(auth)

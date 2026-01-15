@@ -40,9 +40,7 @@ def format_c2pa(metadata: VideoMetadata) -> str:
         if c2pa.signer_name:
             lines.append(f"  Signer: {c2pa.signer_name}")
         if c2pa.signature_time:
-            lines.append(
-                f"  Signed: {c2pa.signature_time.strftime('%Y-%m-%d %H:%M:%S UTC')}"
-            )
+            lines.append(f"  Signed: {c2pa.signature_time.strftime('%Y-%m-%d %H:%M:%S UTC')}")
         if c2pa.digital_source_type:
             lines.append(f"  Digital Source Type: {c2pa.digital_source_type}")
         if c2pa.validation_state:
@@ -85,12 +83,27 @@ def format_c2pa(metadata: VideoMetadata) -> str:
     lines.append("-" * 40)
 
     if ai.signals:
-        for _name, signal in ai.signals.items():
-            confidence = f"{signal.confidence * 100:.0f}%"
-            icon = "✓" if signal.detected else "✗"
-            lines.append(f"  {icon} [{confidence:>4}] {signal.name}")
-            if signal.description:
-                lines.append(f"           {signal.description}")
+        # Separate facts from analysis
+        facts = {k: v for k, v in ai.signals.items() if v.is_fact}
+        analysis = {k: v for k, v in ai.signals.items() if not v.is_fact}
+
+        if facts:
+            lines.append("  [FACT - directly from metadata]")
+            for _name, signal in facts.items():
+                confidence = f"{signal.confidence * 100:.0f}%"
+                icon = "✓" if signal.detected else "✗"
+                lines.append(f"  {icon} [{confidence:>4}] {signal.name}")
+                if signal.description:
+                    lines.append(f"           {signal.description}")
+
+        if analysis:
+            lines.append("  [ANALYSIS - inferred from patterns]")
+            for _name, signal in analysis.items():
+                confidence = f"{signal.confidence * 100:.0f}%"
+                icon = "✓" if signal.detected else "✗"
+                lines.append(f"  {icon} [{confidence:>4}] {signal.name}")
+                if signal.description:
+                    lines.append(f"           {signal.description}")
     else:
         lines.append("  No AI detection signals found")
         lines.append("  (This does NOT mean the video is not AI-generated)")

@@ -9,6 +9,8 @@ from aivid.extractors.c2patool import (
 from aivid.extractors.exiftool import ExifToolExtractor
 from aivid.extractors.ffprobe import FFprobeExtractor
 from aivid.extractors.heuristic import HeuristicDetector
+from aivid.extractors.tiktok_api import TikTokAPIExtractor
+from aivid.extractors.youtube_api import YouTubeAPIExtractor
 
 # Try to import c2pa-python extractor
 try:
@@ -21,6 +23,8 @@ except ImportError:
 
 # All available extractor classes (order doesn't matter, priority is used)
 _EXTRACTORS: list[type[BaseExtractor]] = [
+    YouTubeAPIExtractor,  # priority: 5 (API queries first)
+    TikTokAPIExtractor,  # priority: 5
     FFprobeExtractor,  # priority: 10
     ExifToolExtractor,  # priority: 15
     C2PAToolExtractor,  # priority: 25
@@ -95,6 +99,8 @@ __all__ = [
     "C2PAExtractor",
     "C2PAToolExtractor",
     "HeuristicDetector",
+    "YouTubeAPIExtractor",
+    "TikTokAPIExtractor",
     # Functions
     "get_available_extractors",
     "get_extractor_status",
