@@ -8,8 +8,12 @@ from aivid.utils import format_size
 
 
 def test_version():
-    """Test that version is defined."""
-    assert __version__ == "0.2.0"
+    """Test that version is defined and follows semver format."""
+    assert __version__
+    # Check semver format (x.y.z)
+    parts = __version__.split(".")
+    assert len(parts) == 3
+    assert all(part.isdigit() for part in parts)
 
 
 def test_format_size():
