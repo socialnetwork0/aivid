@@ -77,7 +77,7 @@ class AudioSealDetector(BaseDetector):
         try:
             import torch
             import torchaudio
-            from audioseal import AudioSeal
+            from audioseal import AudioSeal  # type: ignore[attr-defined]
 
             # Load detector model
             detector = AudioSeal.load_detector("audioseal_detector_16bits")
