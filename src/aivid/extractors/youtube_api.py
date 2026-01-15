@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from aivid.config import get_config
 from aivid.extractors.base import BaseExtractor
-from aivid.models import VideoMetadata
+from aivid.models import AISignal, VideoMetadata
 
 if TYPE_CHECKING:
     pass
@@ -159,10 +159,10 @@ class YouTubeAPIExtractor(BaseExtractor):
         ai.is_ai_generated = True
 
         # Add signal with high confidence - this is an official platform label
-        ai.signals["youtube_api_synthetic"] = {
-            "name": "YouTube API Synthetic Media",
-            "detected": True,
-            "confidence": 0.99,
-            "description": f"YouTube API: containsSyntheticMedia=true (video: {video_id})",
-            "is_fact": True,  # Direct platform declaration, not inference
-        }
+        ai.signals["youtube_api_synthetic"] = AISignal(
+            name="YouTube API Synthetic Media",
+            detected=True,
+            confidence=0.99,
+            description=f"YouTube API: containsSyntheticMedia=true (video: {video_id})",
+            is_fact=True,  # Direct platform declaration, not inference
+        )

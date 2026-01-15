@@ -380,16 +380,16 @@ def format_full(metadata: VideoMetadata) -> str:
 
         # Timestamp tracking with source attribution
         lines.append("  [TIMESTAMPS]")
-        if desc.creation_timestamp.value:
-            ts = desc.creation_timestamp
-            lines.append(f"    creation_time: {ts.value.isoformat()}")
-            lines.append(f"    creation_source: {ts.source}")
-            if ts.raw_value:
-                lines.append(f"    creation_raw: {ts.raw_value}")
-        if desc.modification_timestamp.value:
-            ts = desc.modification_timestamp
-            lines.append(f"    modification_time: {ts.value.isoformat()}")
-            lines.append(f"    modification_source: {ts.source}")
+        creation_ts = desc.creation_timestamp
+        if creation_ts.value is not None:
+            lines.append(f"    creation_time: {creation_ts.value.isoformat()}")
+            lines.append(f"    creation_source: {creation_ts.source}")
+            if creation_ts.raw_value:
+                lines.append(f"    creation_raw: {creation_ts.raw_value}")
+        modification_ts = desc.modification_timestamp
+        if modification_ts.value is not None:
+            lines.append(f"    modification_time: {modification_ts.value.isoformat()}")
+            lines.append(f"    modification_source: {modification_ts.source}")
         lines.append("")
 
     # IPTC AI Metadata (2025.1)

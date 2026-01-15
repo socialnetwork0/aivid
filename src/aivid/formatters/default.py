@@ -53,8 +53,8 @@ def format_default(metadata: VideoMetadata) -> str:
         creation_ts = desc.creation_timestamp
         if creation_ts.value:
             time_str = creation_ts.value.strftime("%Y-%m-%d %H:%M:%S UTC")
-            source = creation_ts.source or "unknown"
-            lines.append(f"  Created:      {time_str} (source: {source})")
+            ts_source = creation_ts.source or "unknown"
+            lines.append(f"  Created:      {time_str} (source: {ts_source})")
         elif c2pa.signature_time:
             # Fallback to signature_time
             time_str = c2pa.signature_time.strftime("%Y-%m-%d %H:%M:%S UTC")

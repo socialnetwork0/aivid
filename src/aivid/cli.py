@@ -244,7 +244,7 @@ Examples:
     return 1 if errors > 0 else 0
 
 
-def analyze_url(args) -> int:
+def analyze_url(args: argparse.Namespace) -> int:
     """Analyze video from URL.
 
     Args:

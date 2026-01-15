@@ -21,11 +21,11 @@ available to academic and research applications.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from aivid.config import get_config
 from aivid.extractors.base import BaseExtractor
-from aivid.models import VideoMetadata
+from aivid.models import AISignal, VideoMetadata
 
 if TYPE_CHECKING:
     pass
@@ -137,8 +137,9 @@ class TikTokAPIExtractor(BaseExtractor):
                 timeout=30,
             )
             response.raise_for_status()
-            data = response.json()
-            return data.get("access_token")
+            data: dict[str, Any] = response.json()
+            token = data.get("access_token")
+            return str(token) if token else None
         except httpx.HTTPError:
             return None
 
@@ -189,7 +190,9 @@ class TikTokAPIExtractor(BaseExtractor):
             # Graceful degradation - API errors don't fail the extraction
             pass
 
-    def _update_ai_detection(self, metadata: VideoMetadata, video_id: str, video_tag: dict) -> None:
+    def _update_ai_detection(
+        self, metadata: VideoMetadata, video_id: str, video_tag: dict[str, Any]
+    ) -> None:
         """Update AI detection based on TikTok API label.
 
         Args:
@@ -205,10 +208,10 @@ class TikTokAPIExtractor(BaseExtractor):
         label_source = "creator labeled" if tag_number == 1 else "platform detected"
 
         # Add signal with high confidence - this is an official platform label
-        ai.signals["tiktok_api_aigc"] = {
-            "name": "TikTok API AIGC Label",
-            "detected": True,
-            "confidence": 0.99,
-            "description": f"TikTok API: video_tag.type=AIGC Type ({label_source}, video: {video_id})",
-            "is_fact": True,  # Direct platform declaration, not inference
-        }
+        ai.signals["tiktok_api_aigc"] = AISignal(
+            name="TikTok API AIGC Label",
+            detected=True,
+            confidence=0.99,
+            description=f"TikTok API: video_tag.type=AIGC Type ({label_source}, video: {video_id})",
+            is_fact=True,  # Direct platform declaration, not inference
+        )

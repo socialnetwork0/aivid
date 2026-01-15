@@ -21,7 +21,7 @@ def get_available_detectors() -> list[BaseDetector]:
     Returns:
         List of detector instances that are available on this system.
     """
-    available = []
+    available: list[BaseDetector] = []
 
     try:
         from .audioseal import AudioSealDetector

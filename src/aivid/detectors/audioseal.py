@@ -18,7 +18,7 @@ import contextlib
 import os
 import subprocess
 import tempfile
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from aivid.config import get_config
 from aivid.models.watermark import WatermarkDetection
@@ -174,7 +174,7 @@ class AudioSealDetector(BaseDetector):
             return None
 
     @staticmethod
-    def _decode_message(message) -> str:
+    def _decode_message(message: Any) -> str:
         """Decode 16-bit message from watermark tensor.
 
         Args:

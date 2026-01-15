@@ -134,12 +134,14 @@ def load_config() -> AividConfig:
 
     # Detection config
     detection_config = file_config.get("detection", {})
+    enable_wm_env = _get_env("ENABLE_WATERMARK")
+    enable_watermark: bool = (
+        bool(_parse_bool(enable_wm_env))
+        if enable_wm_env
+        else bool(detection_config.get("enable_watermark", True))
+    )
     detection = DetectionConfig(
-        enable_watermark=(
-            _parse_bool(_get_env("ENABLE_WATERMARK"))
-            if _get_env("ENABLE_WATERMARK")
-            else detection_config.get("enable_watermark", True)
-        ),
+        enable_watermark=enable_watermark,
         audioseal_threshold=float(
             _get_env("AUDIOSEAL_THRESHOLD") or detection_config.get("audioseal_threshold", 0.5)
         ),

@@ -72,8 +72,10 @@ class ExifToolExtractor(BaseExtractor):
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             if result.returncode == 0 and result.stdout:
                 data = json.loads(result.stdout)
-                if data and isinstance(data, list):
-                    return data[0]  # ExifTool returns a list
+                if data and isinstance(data, list) and len(data) > 0:
+                    first_item = data[0]
+                    if isinstance(first_item, dict):
+                        return first_item  # ExifTool returns a list
         except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
             pass
         return {}
