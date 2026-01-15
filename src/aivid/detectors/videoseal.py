@@ -116,10 +116,7 @@ class VideoSealDetector(BaseDetector):
                     frame = frame.unsqueeze(0)  # Add batch dim
                     result = detector(frame)
 
-                    if hasattr(result, "item"):
-                        conf = float(result.item())
-                    else:
-                        conf = float(result)
+                    conf = float(result.item()) if hasattr(result, "item") else float(result)
 
                     total_confidence += conf
                     if conf > threshold:

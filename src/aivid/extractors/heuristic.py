@@ -124,7 +124,4 @@ class HeuristicDetector(BaseExtractor):
             return True
 
         # Format encoder "Google" alone (without Veo) is just platform encoding
-        if format_encoder == "Google" and "Veo" not in handler:
-            return True
-
-        return False
+        return format_encoder == "Google" and "Veo" not in handler

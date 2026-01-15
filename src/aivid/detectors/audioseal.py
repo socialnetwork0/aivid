@@ -14,6 +14,7 @@ Reference: https://github.com/facebookresearch/audioseal
 
 from __future__ import annotations
 
+import contextlib
 import os
 import subprocess
 import tempfile
@@ -124,10 +125,8 @@ class AudioSealDetector(BaseDetector):
         finally:
             # Cleanup temp audio file
             if audio_path and os.path.exists(audio_path):
-                try:
+                with contextlib.suppress(OSError):
                     os.unlink(audio_path)
-                except OSError:
-                    pass
 
     def _extract_audio(self, video_path: str) -> str | None:
         """Extract audio track from video using FFmpeg.
