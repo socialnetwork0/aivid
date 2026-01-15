@@ -4,6 +4,7 @@ import contextlib
 import json
 import shutil
 import subprocess
+from datetime import datetime
 from typing import Any, ClassVar
 
 from aivid.extractors.base import BaseExtractor
@@ -200,3 +201,15 @@ class FFprobeExtractor(BaseExtractor):
 
         # Genre
         desc.genre = tags.get("genre")
+
+        # Parse creation_time from container tags
+        creation_time = tags.get("creation_time")
+        if creation_time:
+            with contextlib.suppress(ValueError, TypeError):
+                parsed = datetime.fromisoformat(str(creation_time).replace("Z", "+00:00"))
+                # Only set if not already set by higher priority source (e.g., exiftool)
+                if not desc.creation_timestamp.value:
+                    desc.creation_timestamp.value = parsed
+                    desc.creation_timestamp.source = "ffprobe"
+                    desc.creation_timestamp.raw_value = str(creation_time)
+                    desc.creation_date = parsed

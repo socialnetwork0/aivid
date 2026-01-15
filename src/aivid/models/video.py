@@ -7,6 +7,7 @@ from .descriptive import DescriptiveMetadata
 from .file import FileInfo
 from .provenance import ProvenanceMetadata
 from .raw import RawMetadata
+from .source import SourceInfo
 from .technical import TechnicalMetadata
 
 
@@ -21,6 +22,7 @@ class VideoMetadata(BaseModel):
     - descriptive: XMP/EXIF/IPTC metadata (title, creator, keywords)
     - provenance: C2PA content credentials
     - ai_detection: AI generation detection results
+    - source: URL source information (when downloaded from URL)
     - raw: Raw data from extraction tools (for debugging)
     """
 
@@ -29,6 +31,7 @@ class VideoMetadata(BaseModel):
     descriptive: DescriptiveMetadata = Field(default_factory=DescriptiveMetadata)
     provenance: ProvenanceMetadata = Field(default_factory=ProvenanceMetadata)
     ai_detection: AIDetectionResult = Field(default_factory=AIDetectionResult)
+    source: SourceInfo = Field(default_factory=SourceInfo)
     raw: RawMetadata = Field(default_factory=RawMetadata)
 
     # Convenience properties

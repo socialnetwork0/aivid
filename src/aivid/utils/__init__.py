@@ -15,6 +15,13 @@ from .deps import (
     check_system_dependencies,
     print_dependency_status,
 )
+from .url_parser import (
+    ParsedURL,
+    Platform,
+    detect_platform,
+    is_supported_url,
+    parse_url,
+)
 
 __all__ = [
     # Formatting
@@ -30,4 +37,10 @@ __all__ = [
     "filter_interesting_strings",
     "CONTAINER_BOXES",
     "MP4_EXTENSIONS",
+    # URL parsing
+    "Platform",
+    "ParsedURL",
+    "parse_url",
+    "detect_platform",
+    "is_supported_url",
 ]
